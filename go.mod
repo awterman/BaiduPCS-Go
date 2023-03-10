@@ -21,6 +21,8 @@ require (
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
 )
 
+require github.com/google/uuid v1.3.0
+
 require (
 	github.com/GeertJohan/go.rice v1.0.2 // indirect
 	github.com/astaxie/beego v1.12.3 // indirect

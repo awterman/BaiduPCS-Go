@@ -3,8 +3,17 @@ package pcsdownload
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs"
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs/pcserror"
+	"github.com/qjfoidnh/BaiduPCS-Go/incline"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsconfig"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsfunctions"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcstable"
@@ -14,13 +23,6 @@ import (
 	"github.com/qjfoidnh/BaiduPCS-Go/requester"
 	"github.com/qjfoidnh/BaiduPCS-Go/requester/downloader"
 	"github.com/qjfoidnh/BaiduPCS-Go/requester/transfer"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type (
@@ -142,6 +144,8 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 		dtu.PrintFormat = DefaultPrintFormat
 	}
 
+	incSession := incline.NewSessionWithUUID()
+
 	// 这里用共享变量的方式
 	isComplete := false
 	der.OnDownloadStatusEvent(func(status transfer.DownloadStatuser, workersCallback func(downloader.RangeWorkerFunc)) {
@@ -150,7 +154,7 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 		if dtu.IsPrintStatus {
 			// 输出所有的worker状态
 			var (
-				tb      = pcstable.NewTable(builder)
+				tb = pcstable.NewTable(builder)
 			)
 			tb.SetHeader([]string{"#", "status", "range", "left", "speeds", "error"})
 			workersCallback(func(key int, worker *downloader.Worker) bool {
@@ -173,7 +177,7 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 			leftStr = left.String()
 		}
 
-		fmt.Fprintf(builder,dtu.PrintFormat, dtu.taskInfo.Id(),
+		fmt.Fprintf(builder, dtu.PrintFormat, dtu.taskInfo.Id(),
 			converter.ConvertFileSize(status.Downloaded(), 2),
 			converter.ConvertFileSize(status.TotalSize(), 2),
 			converter.ConvertFileSize(status.SpeedsPerSecond(), 2),
@@ -184,6 +188,17 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 			// 如果未完成下载, 就输出
 			fmt.Print(builder.String())
 		}
+
+		var incData = map[string]interface{}{
+			"id":         dtu.taskInfo.Id(),
+			"downloaded": status.Downloaded(),
+			"total":      status.TotalSize(),
+			"speed":      status.SpeedsPerSecond(),
+			"elapsed":    status.TimeElapsed(),
+			"left":       left,
+		}
+
+		incSession.Print(incData)
 	})
 
 	der.OnExecute(func() {
@@ -231,8 +246,8 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 	return nil
 }
 
-//panHTTPClient 获取包含特定User-Agent的HTTPClient
-func (dtu *DownloadTaskUnit) panHTTPClient() (*requester.HTTPClient) {
+// panHTTPClient 获取包含特定User-Agent的HTTPClient
+func (dtu *DownloadTaskUnit) panHTTPClient() *requester.HTTPClient {
 	if client == nil {
 		client = pcsconfig.Config.PanHTTPClient()
 	}
@@ -305,12 +320,12 @@ func (dtu *DownloadTaskUnit) locateDownload(result *taskframework.TaskUnitRunRes
 
 	// 更新链接的协议
 	// 跳过nb.cache这种还没有证书的
-	if len(rawDlinks) < dtu.DlinkPrefer + 1 {
+	if len(rawDlinks) < dtu.DlinkPrefer+1 {
 		dtu.DlinkPrefer = len(rawDlinks) - 1
 	}
 	raw_dlink := rawDlinks[dtu.DlinkPrefer]
-	if strings.HasPrefix(raw_dlink.Host, "nb.cache") && len(rawDlinks) > dtu.DlinkPrefer + 1 {
-		raw_dlink = rawDlinks[dtu.DlinkPrefer + 1]
+	if strings.HasPrefix(raw_dlink.Host, "nb.cache") && len(rawDlinks) > dtu.DlinkPrefer+1 {
+		raw_dlink = rawDlinks[dtu.DlinkPrefer+1]
 	}
 	FixHTTPLinkURL(raw_dlink)
 	dlink := raw_dlink.String()
@@ -348,7 +363,7 @@ func (dtu *DownloadTaskUnit) pcsOrStreamingDownload(mode DownloadMode, result *t
 	return true // 下载成功
 }
 
-//checkFileValid 检测文件有效性
+// checkFileValid 检测文件有效性
 func (dtu *DownloadTaskUnit) checkFileValid(result *taskframework.TaskUnitRunResult) (ok bool) {
 	fi, err := os.Stat(dtu.SavePath)
 	if err == nil {
@@ -486,7 +501,7 @@ func (dtu *DownloadTaskUnit) Run() (result *taskframework.TaskUnitRunResult) {
 		result.Succeed = true // 执行成功
 		return
 	}
-	
+
 	if dtu.FileInfo.Size == 0 {
 		if !dtu.Cfg.IsTest {
 			os.Create(dtu.SavePath)
