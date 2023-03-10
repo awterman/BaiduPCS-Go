@@ -3,14 +3,29 @@ package pcscommand
 import (
 	"bytes"
 	"fmt"
-	baidulogin "github.com/qjfoidnh/Baidu-Login"
-	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsfunctions/pcscaptcha"
-	"github.com/qjfoidnh/BaiduPCS-Go/pcsliner"
-	"github.com/qjfoidnh/BaiduPCS-Go/requester"
 	"image/png"
 	"io/ioutil"
 	"strings"
+
+	baidulogin "github.com/qjfoidnh/Baidu-Login"
+	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsfunctions/pcscaptcha"
+	"github.com/qjfoidnh/BaiduPCS-Go/requester"
+	// "github.com/qjfoidnh/BaiduPCS-Go/pcsliner"
 )
+
+type TinyLiner struct{}
+
+func (t *TinyLiner) Prompt(prompt string) (string, error) {
+	fmt.Println(prompt)
+	fmt.Println("|| PROMPT END ||")
+	var input string
+	_, err := fmt.Scanln(&input)
+	return input, err
+}
+
+func (t *TinyLiner) PasswordPrompt(prompt string) (string, error) {
+	return t.Prompt(prompt)
+}
 
 // handleVerifyImg 处理验证码, 下载到本地
 func handleVerifyImg(imgURL string) (savePath string, err error) {
@@ -31,8 +46,12 @@ func handleVerifyImg(imgURL string) (savePath string, err error) {
 
 // RunLogin 登录百度帐号
 func RunLogin(username, password string) (bduss, ptoken, stoken string, cookies string, err error) {
-	line := pcsliner.NewLiner()
-	defer line.Close()
+	line := struct {
+		State TinyLiner
+	}{}
+
+	// line := pcsliner.NewLiner()
+	// defer line.Close()
 
 	bc := baidulogin.NewBaiduClinet()
 
@@ -126,7 +145,7 @@ for_1:
 				} else {
 					vcode_raw = ""
 					vcodestr = ""
-						goto BEGIN
+					goto BEGIN
 				}
 				// 登录成功
 				return nlj.Data.BDUSS, nlj.Data.PToken, nlj.Data.SToken, nlj.Data.CookieString, nil
