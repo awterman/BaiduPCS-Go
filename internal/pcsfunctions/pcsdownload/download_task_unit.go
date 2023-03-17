@@ -13,7 +13,8 @@ import (
 
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs"
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs/pcserror"
-	"github.com/qjfoidnh/BaiduPCS-Go/incline"
+	"github.com/qjfoidnh/BaiduPCS-Go/incline/incproto"
+	"github.com/qjfoidnh/BaiduPCS-Go/incline/incproto/events"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsconfig"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsfunctions"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcstable"
@@ -144,7 +145,7 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 		dtu.PrintFormat = DefaultPrintFormat
 	}
 
-	incSession := incline.NewSessionWithUUID()
+	incSession := incproto.NewSessionWithUUID()
 
 	// 这里用共享变量的方式
 	isComplete := false
@@ -189,16 +190,17 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 			fmt.Print(builder.String())
 		}
 
-		var incData = map[string]interface{}{
+		incData := map[string]interface{}{
 			"id":         dtu.taskInfo.Id(),
 			"downloaded": status.Downloaded(),
 			"total":      status.TotalSize(),
 			"speed":      status.SpeedsPerSecond(),
-			"elapsed":    status.TimeElapsed(),
-			"left":       left,
+			"elapsed":    status.TimeElapsed().Seconds(),
+			"timeLeft":   left.Seconds(),
 		}
 
-		incSession.Print(incData)
+		message := incSession.Event(events.DownloadProgress, incproto.MustMarshalJSON(incData))
+		message.Print()
 	})
 
 	der.OnExecute(func() {
@@ -210,6 +212,12 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 	err = der.Execute()
 	isComplete = true
 	fmt.Print("\n")
+
+	incData := map[string]interface{}{
+		"success": err == nil,
+	}
+
+	incSession.Event(events.DownloadExited, incproto.MustMarshalJSON(incData)).Print()
 
 	if err != nil {
 		// 下载发生错误
