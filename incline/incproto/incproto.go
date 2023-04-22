@@ -47,7 +47,7 @@ type Message struct {
 func (m *Message) Encode() string {
 	var s string
 
-	b, err := json.Marshal(m)
+	b, err := json.MarshalIndent(m, "", "    ")
 	if err != nil {
 		s = fmt.Sprintf("error: %v", err)
 	} else {
@@ -96,7 +96,7 @@ func (s *Session) Event(name string, data json.RawMessage) *Message {
 }
 
 func MustMarshalJSON(v interface{}) json.RawMessage {
-	b, err := json.Marshal(v)
+	b, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		panic(err)
 	}

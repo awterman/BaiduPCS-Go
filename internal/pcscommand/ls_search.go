@@ -1,20 +1,23 @@
 package pcscommand
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
+
+	"github.com/olekukonko/tablewriter"
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcstable"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcsutil/converter"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcsutil/pcstime"
-	"github.com/olekukonko/tablewriter"
-	"os"
-	"strconv"
 )
 
 type (
 	// LsOptions 列目录可选项
 	LsOptions struct {
 		Total bool
+		Json  bool
 	}
 
 	// SearchOptions 搜索可选项
@@ -40,6 +43,11 @@ func RunLs(pcspath string, lsOptions *LsOptions, orderOptions *baidupcs.OrderOpt
 	files, err := GetBaiduPCS().FilesDirectoriesList(pcspath, orderOptions)
 	if err != nil {
 		fmt.Println(err)
+		return
+	}
+
+	if lsOptions != nil && lsOptions.Json {
+		renderJson(files)
 		return
 	}
 
@@ -73,6 +81,44 @@ func RunSearch(targetPath, keyword string, opt *SearchOptions) {
 
 	renderTable(opSearch, opt.Total, targetPath, files)
 	return
+}
+
+// renderJson prints the json format
+func renderJson(files baidupcs.FileDirectoryList) {
+	type output struct {
+		FsID     int64  `json:"fs_id"`
+		Path     string `json:"path"`
+		FileName string `json:"file_name"`
+		IsDir    bool   `json:"is_dir"`
+		Size     int64  `json:"size"`
+		MD5      string `json:"md5"`
+		Ctime    int64  `json:"ctime"`
+		Mtime    int64  `json:"mtime"`
+		AppID    int64  `json:"app_id"`
+	}
+
+	var filesJson []output
+	for _, file := range files {
+		filesJson = append(filesJson, output{
+			FsID:     file.FsID,
+			Path:     file.Path,
+			FileName: file.Filename,
+			IsDir:    file.Isdir,
+			Size:     file.Size,
+			MD5:      file.MD5,
+			Ctime:    file.Ctime,
+			Mtime:    file.Mtime,
+			AppID:    file.AppID,
+		})
+	}
+
+	b, err := json.MarshalIndent(filesJson, "", "    ")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(string(b))
 }
 
 func renderTable(op int, isTotal bool, path string, files baidupcs.FileDirectoryList) {

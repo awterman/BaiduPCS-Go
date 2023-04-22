@@ -719,6 +719,7 @@ func main() {
 
 				pcscommand.RunLs(c.Args().Get(0), &pcscommand.LsOptions{
 					Total: c.Bool("l") || c.Parent().Args().Get(0) == "ll",
+					Json:  c.Bool("json"),
 				}, orderOptions)
 
 				return nil
@@ -747,6 +748,10 @@ func main() {
 				cli.BoolFlag{
 					Name:  "size",
 					Usage: "根据大小排序",
+				},
+				cli.BoolFlag{
+					Name:  "json",
+					Usage: "输出 json 格式",
 				},
 			},
 		},
@@ -1126,7 +1131,7 @@ func main() {
 					Usage: "将本地文件的修改时间设置为服务器上的修改时间",
 				},
 				cli.IntFlag{
-					Name: "dindex",
+					Name:  "dindex",
 					Usage: "使用备选下载链接中的第几个，默认第一个",
 				},
 				cli.BoolFlag{

@@ -215,6 +215,7 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 
 	incData := map[string]interface{}{
 		"success": err == nil,
+		"error":   fmt.Sprint(err),
 	}
 
 	incSession.Event(events.DownloadExited, incproto.MustMarshalJSON(incData)).Print()
