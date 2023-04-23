@@ -213,13 +213,6 @@ func (dtu *DownloadTaskUnit) download(downloadURL string, client *requester.HTTP
 	isComplete = true
 	fmt.Print("\n")
 
-	incData := map[string]interface{}{
-		"success": err == nil,
-		"error":   fmt.Sprint(err),
-	}
-
-	incSession.Event(events.DownloadExited, incproto.MustMarshalJSON(incData)).Print()
-
 	if err != nil {
 		// 下载发生错误
 		if !dtu.Cfg.IsTest {

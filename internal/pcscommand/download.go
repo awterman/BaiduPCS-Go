@@ -2,8 +2,15 @@ package pcscommand
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs"
 	"github.com/qjfoidnh/BaiduPCS-Go/baidupcs/pcserror"
+	"github.com/qjfoidnh/BaiduPCS-Go/incline/incproto"
+	"github.com/qjfoidnh/BaiduPCS-Go/incline/incproto/events"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsconfig"
 	"github.com/qjfoidnh/BaiduPCS-Go/internal/pcsfunctions/pcsdownload"
 	"github.com/qjfoidnh/BaiduPCS-Go/pcstable"
@@ -11,10 +18,6 @@ import (
 	"github.com/qjfoidnh/BaiduPCS-Go/pcsutil/taskframework"
 	"github.com/qjfoidnh/BaiduPCS-Go/requester/downloader"
 	"github.com/qjfoidnh/BaiduPCS-Go/requester/transfer"
-	"os"
-	"path/filepath"
-	"runtime"
-	"sort"
 )
 
 type (
@@ -198,4 +201,12 @@ func RunDownload(paths []string, options *DownloadOptions) {
 
 	// print
 
+	// FIXME: uuid is not shared between child tasks
+	incSession := incproto.NewSessionWithUUID()
+	incData := map[string]interface{}{
+		"success": err == nil,
+		"error":   fmt.Sprint(err),
+	}
+
+	incSession.Event(events.DownloadExited, incproto.MustMarshalJSON(incData)).Print()
 }
